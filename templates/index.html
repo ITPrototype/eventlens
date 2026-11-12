@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EventLens</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="brand"><span class="logo">◉</span> EventLens</div>
+  <nav id="tabs" class="tabs">
+    <button data-logs="Application,System,Security">All</button>
+    <button data-logs="Application">Application</button>
+    <button data-logs="System">System</button>
+    <button data-logs="Security">Security</button>
+  </nav>
+  <select id="more" title="Other logs"><option value="">More logs…</option></select>
+  <div class="spacer"></div>
+  <span id="pill-demo" class="pill demo" hidden title="Not running on Windows — showing synthetic events">DEMO DATA</span>
+  <span id="pill-admin" class="pill" hidden></span>
+  <span id="host" class="host"></span>
+  <select id="range" title="Time range">
+    <option value="1">Last hour</option>
+    <option value="6">Last 6 hours</option>
+    <option value="24">Last 24 hours</option>
+    <option value="72">Last 3 days</option>
+    <option value="168">Last 7 days</option>
+    <option value="720">Last 30 days</option>
+    <option value="0">All time</option>
+  </select>
+  <select id="max" title="Max events per log">
+    <option value="500">500 / log</option>
+    <option value="2000">2 000 / log</option>
+    <option value="5000">5 000 / log</option>
+    <option value="20000">20 000 / log</option>
+  </select>
+  <label class="live" title="Auto-refresh every 15 s"><input type="checkbox" id="live"><span>Live</span></label>
+  <button id="refresh" class="btn" title="Reload (r)">⟳</button>
+</header>
+
+<section class="bar">
+  <div class="search">
+    <svg viewBox="0 0 20 20" width="15" height="15"><circle cx="8.5" cy="8.5" r="5.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M13 13l5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    <input id="q" type="text" spellcheck="false" autocomplete="off"
+           placeholder='Search…  id:4625  level:error  -dcom  /regex/   (? = help)'>
+    <kbd>/</kbd>
+    <button id="help" class="mini" title="Search syntax">?</button>
+  </div>
+  <div id="chips" class="chips"></div>
+  <span id="brushchip" class="brushchip" hidden></span>
+  <div class="spacer"></div>
+  <button id="clear" class="btn ghost" title="Reset all filters">Reset</button>
+  <button id="csv" class="btn" title="Export visible rows">CSV</button>
+  <button id="json" class="btn" title="Export visible rows">JSON</button>
+</section>
+
+<section id="help-pop" class="helppop" hidden>
+  <b>Search syntax</b> — terms are combined with AND, case-insensitive
+  <table>
+    <tr><td><code>kerberos</code></td><td>text in message / source / user</td></tr>
+    <tr><td><code>"logon failed"</code></td><td>exact phrase</td></tr>
+    <tr><td><code>id:4624,4625</code> <code>id:7000-7045</code></td><td>event ID list / range</td></tr>
+    <tr><td><code>src:disk</code> · <code>msg:</code> · <code>user:</code> · <code>host:</code> · <code>log:</code> · <code>task:</code> · <code>kw:</code></td><td>field contains</td></tr>
+    <tr><td><code>level:error,warn</code> <code>level:fail</code></td><td>crit · error · warn · info · verbose · fail (audit failure)</td></tr>
+    <tr><td><code>-dcom</code> <code>-id:7036</code></td><td>exclude</td></tr>
+    <tr><td><code>/fail(ed|ure)/</code></td><td>regular expression on message</td></tr>
+  </table>
+  <b>Mouse</b> — drag on the timeline to zoom into a time range · click a list item to filter · Alt-click to exclude<br>
+  <b>Keys</b> — <kbd>/</kbd> search · <kbd>j</kbd>/<kbd>k</kbd> or <kbd>↑</kbd>/<kbd>↓</kbd> move · <kbd>Esc</kbd> close · <kbd>r</kbd> reload
+</section>
+
+<section class="tlwrap">
+  <div id="tl" class="tl"><svg id="tlsvg"></svg><div id="tlbrush" class="tlbrush" hidden></div><div id="tlsel" class="tlsel" hidden></div></div>
+</section>
+
+<div id="banner" class="banner" hidden></div>
+
+<main class="grid">
+  <aside class="side">
+    <section>
+      <h3>Findings <small id="find-sub"></small></h3>
+      <ul id="finds" class="list finds"></ul>
+    </section>
+    <section>
+      <h3>Event IDs</h3>
+      <ul id="topIds" class="list"></ul>
+    </section>
+    <section>
+      <h3>Sources</h3>
+      <ul id="topSrc" class="list"></ul>
+    </section>
+  </aside>
+
+  <div class="tablewrap" id="tw">
+    <table id="tbl" class="single">
+      <thead>
+        <tr>
+          <th class="c-t" data-sort="t">Time <i></i></th>
+          <th class="c-l" data-sort="lv" title="Severity">Lv <i></i></th>
+          <th class="c-i" data-sort="id">ID <i></i></th>
+          <th class="c-s" data-sort="src">Source <i></i></th>
+          <th class="c-g" data-sort="log">Log <i></i></th>
+          <th class="c-m">Message</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <div id="empty" class="empty" hidden>No events match the current filters.</div>
+    <div id="loading" class="loading" hidden><span class="spin"></span><span id="loadtxt">Loading events…</span></div>
+  </div>
+
+  <aside id="drawer" class="drawer"></aside>
+</main>
+
+<footer class="status">
+  <span id="st-left"></span>
+  <span class="spacer"></span>
+  <span class="dim">/ search · j k navigate · Esc close · r reload · drag timeline to zoom</span>
+</footer>
+<div id="toast" class="toast" hidden></div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
